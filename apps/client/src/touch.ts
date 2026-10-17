@@ -51,7 +51,7 @@ export class TouchControls {
     });
     zone.addEventListener("pointermove", (e) => {
       if (e.pointerId !== this.steerPointer) return;
-      const range = Math.min(110, innerWidth * 0.09);
+      const range = Math.max(50, Math.min(110, Math.min(innerWidth, innerHeight) * 0.16));
       this.setSteer((e.clientX - this.originX) / range);
     });
     const release = (e: PointerEvent) => {

@@ -157,12 +157,6 @@ body.touch-race .speedo .tach { justify-content: center; }
 body.touch-race .bars { bottom: auto; top: 96px; width: 200px; }
 body.touch-race .rival.right { right: 330px; bottom: 120px; }
 body.touch-race .rival.left { bottom: auto; top: 190px; }
-#rotate { display: none; }
-@media (pointer: coarse) and (orientation: portrait) {
-  body.touch-race #rotate { display: grid; place-content: center; text-align: center; gap: 14px; position: fixed; inset: 0; z-index: 10; background: #1a1410; font-family: var(--display); font-size: 24px; color: var(--ink); padding: 30px; }
-  #rotate div { font-size: 72px; animation: spin 1.6s ease-in-out infinite; }
-}
-@keyframes spin { 0%, 30% { transform: rotate(0) } 70%, 100% { transform: rotate(90deg) } }
 @media (max-height: 500px) {
   .top { top: 10px; left: 16px; right: 16px; }
   .place { font-size: 40px; }
@@ -221,4 +215,38 @@ body.touch-race .rival.left { bottom: auto; top: 190px; }
   body.touch-race .rival .tag { font-size: 9px; }
   body.touch-race .rival .name { font-size: 14px; }
   body.touch-race .rival .track { height: 5px; margin-top: 3px; }
+}
+
+/* Portrait phones: thumbs at the bottom corners, readouts along the top. */
+@media (pointer: coarse) and (orientation: portrait) {
+  .steer-zone { top: 50%; width: 52%; }
+  .buttons-zone { width: 196px; height: 206px; right: max(10px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); }
+  .tbtn { background: rgba(16,12,10,.3); border-radius: 12px; font-size: 13px; }
+  .tbtn.punch { width: 94px; height: 60px; bottom: 66px; }
+  .tbtn.punch.l, .tbtn.kick.l { right: 102px; }
+  .tbtn.kick { width: 94px; height: 46px; bottom: 134px; font-size: 12px; }
+  .tbtn.brake { width: 196px; height: 54px; }
+  body.touch-race .top { top: max(12px, env(safe-area-inset-top)); left: 14px; right: 14px; }
+  body.touch-race .place { font-size: 46px; }
+  body.touch-race .progress { top: calc(max(12px, env(safe-area-inset-top)) + 64px); width: calc(100vw - 28px); }
+  body.touch-race .bars { top: calc(max(12px, env(safe-area-inset-top)) + 86px); bottom: auto; left: 14px; width: 42vw; }
+  body.touch-race .bar label { font-size: 11px; }
+  body.touch-race .bar .track { height: 8px; }
+  body.touch-race .speedo { top: calc(max(12px, env(safe-area-inset-top)) + 82px); bottom: auto; right: 14px; left: auto; transform: none; text-align: right; }
+  body.touch-race .speedo .mph { font-size: 48px; }
+  body.touch-race .speedo .gear { font-size: 14px; padding: 1px 6px; }
+  body.touch-race .speedo .unit { font-size: 11px; }
+  body.touch-race .speedo .tach { justify-content: flex-end; }
+  body.touch-race .tach i { width: 6px; height: 10px; }
+  body.touch-race .rival { top: calc(max(12px, env(safe-area-inset-top)) + 170px); bottom: auto; width: calc(50vw - 20px); padding: 4px 9px; background: rgba(16,12,10,.3); }
+  body.touch-race .rival.left, body.touch-race .rival.right { top: calc(max(12px, env(safe-area-inset-top)) + 170px); bottom: auto; }
+  body.touch-race .rival.left { left: 14px; }
+  body.touch-race .rival.right { right: 14px; }
+  body.touch-race .rival .name { font-size: 15px; }
+  body.touch-race .rival .tag { font-size: 9px; }
+  body.touch-race .rival .track { height: 5px; }
+  body.touch-race .mute, body.touch-race .ping { display: none; }
+  .msg { top: 34%; font-size: 44px; }
+  .count { font-size: 120px; }
+  .screen { padding: 24px 22px; background: linear-gradient(180deg, rgba(14,9,6,.88) 0%, rgba(14,9,6,.7) 60%, rgba(14,9,6,.4)); }
 }

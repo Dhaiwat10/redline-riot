@@ -22,7 +22,7 @@ import { TouchControls, buzz, isTouchDevice } from "./touch.ts";
 import { Menu } from "./menu.ts";
 import { Net } from "./net.ts";
 import { OnlineRace } from "./online.ts";
-import { ChaseCamera } from "./render/camera.ts";
+import { ChaseCamera, fitFov } from "./render/camera.ts";
 import { Particles, SpeedLines } from "./render/fx.ts";
 import { Post } from "./render/post.ts";
 import { buildProps } from "./render/props.ts";
@@ -451,8 +451,9 @@ export class Game {
     const a = this.time * 0.12 + 2.2;
     cam.position.set(p.x + Math.sin(a) * 14, p.y + 3.2 + Math.sin(this.time * 0.3) * 0.6, p.z + Math.cos(a) * 14);
     cam.lookAt(this.tmp.set(p.x, p.y + 1.1, p.z));
-    if (cam.fov !== 50) {
-      cam.fov = 50;
+    const titleFov = fitFov(50, cam.aspect);
+    if (cam.fov !== titleFov) {
+      cam.fov = titleFov;
       cam.updateProjectionMatrix();
     }
   }
@@ -514,11 +515,10 @@ function soloEntries(name = "You", colour = 0xe8402a): RacerEntry[] {
   return [...rivals.slice(0, 6), { name, colour, human: true }, ...rivals.slice(6)];
 }
 
-/** Fullscreen + landscape lock where the browser allows it (Android Chrome); no-op elsewhere. */
+/** Fullscreen where the browser allows it (Android Chrome); no-op elsewhere. */
 function goFullscreen(): void {
   const el = document.documentElement;
   if (document.fullscreenElement || !el.requestFullscreen) return;
   el.requestFullscreen({ navigationUI: "hide" })
-    .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.("landscape"))
     .catch(() => {});
 }

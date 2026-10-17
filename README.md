@@ -21,7 +21,7 @@ invite link (`/r/<code>`) in the other.
 Controls: `W`/`S` throttle and brake, `A`/`D` steer, `J`/`L` punch left/right, `U`/`O` kick left/right,
 `M` toggle sound (starts muted). Gamepad: RT/LT, left stick, X/B punch, LB/RB kick.
 
-On phones and tablets (landscape): drag sideways anywhere on the left half to steer, throttle is
+On phones and tablets (portrait or landscape): drag sideways anywhere on the left half to steer, throttle is
 automatic, and the right side has brake, punch and kick buttons. Phones get a lighter graphics
 tier, and render resolution adapts to hold the frame rate. To try it on your phone, run `pnpm dev`
 and open the "Network" URL Vite prints, on the same Wi-Fi.

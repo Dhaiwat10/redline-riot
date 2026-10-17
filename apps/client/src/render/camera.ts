@@ -32,8 +32,10 @@ export class ChaseCamera {
     const lean = lerp(prev.lean, cur.lean, alpha);
     const speed = r.speed;
 
-    const dist = crashed ? 8 : 3.9 + speed * 0.022;
-    const height = crashed ? 3.5 : 1.75 + speed * 0.004;
+    // Tall (portrait) screens: sit higher and further back so the extra height shows road ahead.
+    const portrait = this.camera.aspect < 0.85;
+    const dist = (crashed ? 8 : 3.9 + speed * 0.022) + (portrait ? 1.6 : 0);
+    const height = (crashed ? 3.5 : 1.75 + speed * 0.004) + (portrait ? 1.1 : 0);
     const targetS = s - dist;
     const k = 1 - Math.exp(-dt * (crashed ? 2.5 : 9));
     if (!this.initialised) {
@@ -55,7 +57,7 @@ export class ChaseCamera {
     cam.position.y = Math.max(roadAtCam, riderY - 0.5) + this.camH;
 
     track.frame(s + (crashed ? 0 : 9 + speed * 0.08), f);
-    this.look.set(f.x + f.rx * d, f.y + (crashed ? 0.4 : 1.45), f.z + f.rz * d);
+    this.look.set(f.x + f.rx * d, f.y + (crashed ? 0.4 : 1.45) + (portrait && !crashed ? 0.9 : 0), f.z + f.rz * d);
     if (this.lookSmoothed.lengthSq() === 0) this.lookSmoothed.copy(this.look);
     this.lookSmoothed.lerp(this.look, 1 - Math.exp(-dt * 14));
     cam.lookAt(this.lookSmoothed);
@@ -71,10 +73,21 @@ export class ChaseCamera {
     cam.rotateY(valueNoise2(time * 25, 11) * 0.04 * amp);
 
     // Widen the lens with speed.
-    const fov = 60 + Math.min(1, speed / 65) * 16;
+    const fov = fitFov(60 + Math.min(1, speed / 65) * 16, cam.aspect);
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = lerp(cam.fov, fov, 1 - Math.exp(-dt * 3));
       cam.updateProjectionMatrix();
     }
   }
+}
+
+/**
+ * Three.js FOV is vertical, so a narrow portrait screen would see a sliver of road. Widen the
+ * vertical FOV part of the way toward keeping the horizontal view constant.
+ */
+export function fitFov(fov: number, aspect: number): number {
+  if (aspect >= 1) return fov;
+  const half = (fov * Math.PI) / 360;
+  const widened = 2 * Math.atan(Math.tan(half) / Math.sqrt(aspect));
+  return Math.min(100, (widened * 180) / Math.PI);
 }
