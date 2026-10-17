@@ -26,6 +26,15 @@ automatic, and the right side has brake, punch and kick buttons. Phones get a li
 tier, and render resolution adapts to hold the frame rate. To try it on your phone, run `pnpm dev`
 and open the "Network" URL Vite prints, on the same Wi-Fi.
 
+## Deploy
+
+Live at https://redline-riot.fly.dev (Fly.io, London). Races live in server memory, so it runs on
+a single machine that sleeps when idle and wakes on the next visit.
+
+```bash
+pnpm deploy     # fly deploy --ha=false
+```
+
 ## Layout
 
 - `packages/shared` — the deterministic simulation: track generator, bike physics, combat, AI, traffic.

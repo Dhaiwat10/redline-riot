@@ -1,6 +1,7 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { extname, join, normalize } from "node:path";
+import { createGzip } from "node:zlib";
 import { WebSocketServer } from "ws";
 import { decodeInput, idleInput, isInputFrame, type ClientMsg } from "@rr/shared";
 import { Conn } from "./conn.ts";
@@ -40,7 +41,14 @@ export class GameServer {
       let file = normalize(join(dir, url));
       if (!file.startsWith(dir) || !existsSync(file) || statSync(file).isDirectory()) file = join(dir, "index.html");
       res.setHeader("content-type", MIME[extname(file)] ?? "application/octet-stream");
-      createReadStream(file).pipe(res);
+      // Vite fingerprints everything under /assets, so those can be cached forever.
+      res.setHeader("cache-control", url.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache");
+      const ext = extname(file);
+      if ((ext === ".js" || ext === ".css" || ext === ".html") && /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""))) {
+        res.setHeader("content-encoding", "gzip");
+        res.setHeader("vary", "accept-encoding");
+        createReadStream(file).pipe(createGzip()).pipe(res);
+      } else createReadStream(file).pipe(res);
     });
     const wss = new WebSocketServer({ server: this.http, path: "/ws" });
     wss.on("connection", (ws) => this.connect(new Conn(ws, opts.lagMs ?? 0, opts.jitterMs ?? 0)));

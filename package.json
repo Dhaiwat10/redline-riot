@@ -8,7 +8,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "dev:lag": "SIM_LAG_MS=150 SIM_JITTER_MS=30 pnpm dev",
-    "start": "pnpm build && STATIC_DIR=../client/dist pnpm --filter @rr/server start"
+    "start": "pnpm build && STATIC_DIR=../client/dist pnpm --filter @rr/server start",
+    "deploy": "fly deploy --ha=false"
   },
-  "packageManager": "pnpm@10.0.0"
+  "packageManager": "pnpm@9.12.0"
 }
