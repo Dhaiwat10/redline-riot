@@ -24,6 +24,16 @@ export interface SimContext {
   rng: Rng;
   events: SimEvent[];
   tick: number;
+  /**
+   * False on clients predicting their own rider: attacks animate but only the server
+   * decides whether they land.
+   */
+  authority: boolean;
+  /**
+   * Where `target` was on the attacker's screen. The server uses this to judge hits from
+   * the attacker's (slightly delayed) view of the world. Defaults to the current position.
+   */
+  rewind?: (attacker: RiderState, target: RiderState) => { s: number; d: number } | null;
 }
 
 /** Lateral push from centrifugal force, per (m/s)² of speed per unit curvature. */
@@ -113,14 +123,15 @@ function stepAttack(r: RiderState, input: RiderInput, ctx: SimContext): void {
   if (r.attack === Attack.None) return;
   const spec = attackSpec(r.attack)!;
   r.attackT++;
-  if (!r.attackHit && r.attackT > spec.windup && r.attackT <= spec.windup + spec.active) {
+  if (ctx.authority && !r.attackHit && r.attackT > spec.windup && r.attackT <= spec.windup + spec.active) {
     let best: RiderState | null = null;
     let bestGap = Infinity;
     for (const o of ctx.riders) {
       if (o === r || o.mode !== "riding" || o.invulnerable > 0) continue;
-      const ds = Math.abs(o.s - r.s);
+      const seen = ctx.rewind?.(r, o) ?? o;
+      const ds = Math.abs(seen.s - r.s);
       if (ds > spec.window) continue;
-      const dd = (o.d - r.d) * r.attackSide;
+      const dd = (seen.d - r.d) * r.attackSide;
       if (dd < spec.minReach || dd > spec.reach) continue;
       const gap = ds + dd;
       if (gap < bestGap) {

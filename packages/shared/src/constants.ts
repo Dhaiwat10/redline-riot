@@ -11,3 +11,4 @@ export const SHOULDER_WIDTH = 2.5;
 export const MPS_TO_MPH = 2.23694;
 
 export const COUNTDOWN_TICKS = 3 * TICK_RATE;
+export const TRACK_SEED = 20261017;

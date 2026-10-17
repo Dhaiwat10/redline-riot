@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @rr/client dev",
+    "dev": "pnpm --parallel --filter @rr/client --filter @rr/server dev",
     "build": "pnpm --filter @rr/client build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "dev:lag": "SIM_LAG_MS=150 SIM_JITTER_MS=30 pnpm dev",
+    "start": "pnpm build && STATIC_DIR=../client/dist pnpm --filter @rr/server start"
   },
   "packageManager": "pnpm@10.0.0"
 }

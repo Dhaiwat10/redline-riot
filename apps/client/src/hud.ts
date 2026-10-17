@@ -20,6 +20,7 @@ export class Hud {
   private readonly tach: HTMLElement[] = [];
   private msgTimer = 0;
   private cache = new Map<string, string>();
+  onAgain: (() => void) | null = null;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -44,18 +45,7 @@ export class Hud {
       <div class="msg" data-k="msg"></div>
       <div class="count" data-k="count"></div>
       <div class="mute" data-k="mute">M · SOUND OFF</div>
-      <div class="screen" data-k="title">
-        <div class="logo">REDLINE<em>RIOT</em></div>
-        <div class="tagline">EIGHT KILOMETRES · TWELVE RIDERS · NO RULES</div>
-        <div class="cta">PRESS ENTER TO RIDE</div>
-        <div class="keys">
-          <span><kbd>W</kbd><kbd>S</kbd></span><span>Throttle · brake</span>
-          <span><kbd>A</kbd><kbd>D</kbd></span><span>Steer</span>
-          <span><kbd>J</kbd><kbd>L</kbd></span><span>Punch left · right</span>
-          <span><kbd>U</kbd><kbd>O</kbd></span><span>Kick left · right</span>
-          <span><kbd>M</kbd></span><span>Mute</span>
-        </div>
-      </div>
+      <div class="ping hide" data-k="ping"></div>
       <div class="screen results hide" data-k="results"></div>
       <div class="loading" data-k="loading">BUILDING THE ROAD…</div>
     `;
@@ -185,7 +175,16 @@ export class Hud {
     this.el[`rival${side}Hp`].style.width = `${Math.max(0, r.health)}%`;
   }
 
-  results(race: Race, me: RiderState) {
+  setPing(ms: number | null) {
+    this.show("ping", ms !== null);
+    if (ms !== null) this.set("ping", `${Math.round(ms)} MS`);
+  }
+
+  hideResults() {
+    this.show("results", false);
+  }
+
+  results(race: Race, me: RiderState, footer = "PRESS ENTER TO RACE AGAIN") {
     const rows = [...race.riders]
       .sort((a, b) => a.place - b.place)
       .map(
@@ -198,7 +197,9 @@ export class Hud {
     this.el.results.innerHTML = `
       <div class="logo" style="font-size:72px">${me.place}<small style="font-size:32px">${ordinal(me.place)}</small> PLACE</div>
       <table>${rows}</table>
-      <div class="cta">PRESS ENTER TO RACE AGAIN</div>`;
+      <div class="cta">${footer}</div>
+      ${footer.startsWith("PRESS ENTER") ? '<button class="btn primary touch-again">RACE AGAIN</button>' : ""}`;
+    this.el.results.querySelector(".touch-again")?.addEventListener("click", () => this.onAgain?.());
     this.show("results", true);
   }
 }

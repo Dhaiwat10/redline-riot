@@ -5,7 +5,7 @@ import { BIKES, createRider, idleInput, type Personality, type RiderInput, type 
 import { Rng } from "./rng.ts";
 import { generateProps, type Prop } from "./scenery.ts";
 import { generateTrack, type Track } from "./track.ts";
-import { generateTraffic, stepTraffic, type Car } from "./traffic.ts";
+import { generateTraffic, placeTraffic, type Car } from "./traffic.ts";
 
 export type RacePhase = "countdown" | "racing" | "finished";
 
@@ -41,6 +41,9 @@ export class Race implements SimContext {
   readonly rng: Rng;
   events: SimEvent[] = [];
   tick = 0;
+  readonly authority = true;
+  /** Server-side lag compensation hook; see SimContext. */
+  rewind?: SimContext["rewind"];
   phase: RacePhase = "countdown";
   countdown = COUNTDOWN_TICKS;
   private finishers = 0;
@@ -68,7 +71,7 @@ export class Race implements SimContext {
   step(inputs: ReadonlyMap<number, RiderInput>): SimEvent[] {
     this.events = [];
     this.tick++;
-    stepTraffic(this.cars, this.track, DT);
+    placeTraffic(this.cars, this.track, this.tick);
 
     if (this.phase === "countdown") {
       // Riders can rev on the line but not move.

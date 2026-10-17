@@ -8,3 +8,4 @@ export * from "./combat.ts";
 export * from "./physics.ts";
 export * from "./ai.ts";
 export * from "./race.ts";
+export * from "./net.ts";

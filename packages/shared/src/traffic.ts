@@ -1,4 +1,4 @@
-import { ROAD_HALF_WIDTH } from "./constants.ts";
+import { DT, ROAD_HALF_WIDTH } from "./constants.ts";
 import { Rng } from "./rng.ts";
 import type { Track } from "./track.ts";
 
@@ -8,6 +8,8 @@ export interface Car {
   id: number;
   kind: CarKind;
   colour: number;
+  /** Position at tick 0; `s` is always derived from it so every machine agrees. */
+  s0: number;
   s: number;
   d: number;
   speed: number; // signed: negative = oncoming
@@ -29,6 +31,7 @@ export function generateTraffic(track: Track): Car[] {
         id: id++,
         kind,
         colour: rng.pick(CAR_COLOURS),
+        s0: s,
         s,
         d: dir > 0 ? lane + rng.range(-0.4, 0.4) : -lane + rng.range(-0.4, 0.4),
         speed: dir * rng.range(20, 27),
@@ -40,12 +43,16 @@ export function generateTraffic(track: Track): Car[] {
   return cars;
 }
 
-/** Moves cars along the road, wrapping them so the road stays populated. */
-export function stepTraffic(cars: Car[], track: Track, dt: number): void {
-  const span = track.length - track.startLine - 200;
+/**
+ * Places cars for a given tick. Traffic is a pure function of time, so clients compute it
+ * themselves and it never needs to be sent over the network. Cars wrap to keep the road busy.
+ */
+export function placeTraffic(cars: Car[], track: Track, tick: number): void {
+  const lo = track.startLine + 150;
+  const span = track.length - 50 - lo;
+  const t = tick * DT;
   for (const c of cars) {
-    c.s += c.speed * dt;
-    if (c.s > track.length - 50) c.s -= span;
-    else if (c.s < track.startLine + 150) c.s += span;
+    const raw = c.s0 + c.speed * t - lo;
+    c.s = lo + (((raw % span) + span) % span);
   }
 }

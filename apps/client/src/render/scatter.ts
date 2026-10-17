@@ -7,12 +7,12 @@ import type { Ground, GroundInfo } from "./terrain.ts";
 let material: THREE.MeshStandardMaterial | null = null;
 
 /** Decorative trees and rocks for one terrain chunk, baked into a single mesh. */
-export function buildScatter(ground: Ground, x0: number, z0: number, size: number, seed: number): THREE.Mesh | null {
+export function buildScatter(ground: Ground, x0: number, z0: number, size: number, seed: number, density = 1): THREE.Mesh | null {
   const rng = new Rng(seed);
   const f = flora();
   const baker = new Baker(20000);
   const info: GroundInfo = { s: 0, d: 0, roadY: 0, coast: 0, forest: 0, alpine: 0 };
-  const attempts = 70;
+  const attempts = Math.round(70 * density);
   for (let i = 0; i < attempts; i++) {
     const x = x0 + rng.next() * size;
     const z = z0 + rng.next() * size;

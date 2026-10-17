@@ -7,12 +7,21 @@ import {
   Race,
   SHOULDER_WIDTH,
   TICK_RATE,
+  TRACK_SEED,
   idleInput,
+  type RacerEntry,
+  type RoomInfo,
+  type ServerMsg,
   type SimEvent,
 } from "@rr/shared";
 import { Audio } from "./audio.ts";
 import { Hud, ordinal } from "./hud.ts";
 import { Input } from "./input.ts";
+import { ResolutionScaler, pickQuality, type Quality } from "./quality.ts";
+import { TouchControls, buzz, isTouchDevice } from "./touch.ts";
+import { Menu } from "./menu.ts";
+import { Net } from "./net.ts";
+import { OnlineRace } from "./online.ts";
 import { ChaseCamera } from "./render/camera.ts";
 import { Particles, SpeedLines } from "./render/fx.ts";
 import { Post } from "./render/post.ts";
@@ -23,10 +32,7 @@ import { HORIZON, SUN_DIR, Sky, Water } from "./render/sky.ts";
 import { Ground, Terrain } from "./render/terrain.ts";
 import { TrafficView } from "./render/traffic.ts";
 
-const SEED = 20261017;
-const PLAYER_COLOUR = 0xe8402a;
-
-type Mode = "title" | "race" | "results";
+type Mode = "title" | "lobby" | "race" | "results";
 
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
@@ -41,6 +47,14 @@ export class Game {
   private readonly sparks = new Particles(600, true);
   private readonly dust = new Particles(500, false, 0.45);
   private readonly speedLines = new SpeedLines();
+  private readonly menu: Menu;
+  private readonly quality: Quality = pickQuality();
+  private readonly scaler: ResolutionScaler;
+  private readonly touch: TouchControls;
+  private readonly net = new Net();
+  private online: OnlineRace | null = null;
+  private room: RoomInfo | null = null;
+  private myId = -1;
 
   private race!: Race;
   private ground!: Ground;
@@ -65,19 +79,19 @@ export class Game {
 
   constructor(canvas: HTMLCanvasElement, hudRoot: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance", stencil: false, depth: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.renderer.setPixelRatio(this.quality.maxPixelRatio);
     this.renderer.setSize(innerWidth, innerHeight, false);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.NoToneMapping;
 
     this.chase = new ChaseCamera(innerWidth / innerHeight);
-    this.scene.fog = new THREE.Fog(HORIZON, 220, 1100);
+    this.scene.fog = new THREE.Fog(HORIZON, 220 * (this.quality.viewDistance / 1100), this.quality.viewDistance);
     this.scene.background = HORIZON.clone();
 
     this.sun = new THREE.DirectionalLight(0xffe4c0, 3.6);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(this.quality.shadowSize, this.quality.shadowSize);
     const sc = this.sun.shadow.camera;
     sc.left = -45;
     sc.right = 45;
@@ -91,8 +105,28 @@ export class Game {
     this.scene.add(new THREE.HemisphereLight(0xa9c8f0, 0x5d4a30, 1.0));
     this.scene.add(this.sky.group, this.sparks.points, this.dust.points, this.speedLines.lines);
 
-    this.post = new Post(this.renderer, this.scene, this.chase.camera);
+    this.post = new Post(this.renderer, this.scene, this.chase.camera, this.quality);
+    this.scaler = new ResolutionScaler(this.quality, (ratio) => {
+      this.renderer.setPixelRatio(ratio);
+      this.post.setSize(innerWidth, innerHeight);
+    });
     this.hud = new Hud(hudRoot);
+    this.touch = new TouchControls(hudRoot);
+    this.input.touch = this.touch;
+    this.hud.onAgain = () => this.solo();
+    this.menu = new Menu(hudRoot, {
+      solo: () => this.solo(),
+      quick: () => void this.goOnline({ t: "quick" }),
+      create: () => void this.goOnline({ t: "create" }),
+      join: (code) => void this.goOnline({ t: "join", code }),
+      start: () => this.net.send({ t: "start" }),
+      leave: () => this.leaveRoom(),
+    });
+    this.net.onMessage = (m) => this.onServer(m);
+    this.net.onSnapshot = (s) => this.online?.receive(s);
+    this.net.onClose = () => {
+      if (this.room || this.online) this.backToTitle("Lost connection to the race server.");
+    };
 
     addEventListener("resize", () => this.resize());
     addEventListener("keydown", (e) => {
@@ -107,10 +141,10 @@ export class Game {
   /** Builds the world. Async only so the loading screen gets a frame to paint. */
   async load(): Promise<void> {
     await new Promise((r) => setTimeout(r, 30));
-    this.newRace();
+    this.newRace(new Race(TRACK_SEED, soloEntries()));
     const t = this.race.track;
     this.ground = new Ground(t);
-    this.terrain = new Terrain(this.ground);
+    this.terrain = new Terrain(this.ground, this.quality.scatter);
     this.scene.add(this.terrain.group);
     this.scene.add(buildRoad(t, this.renderer));
     this.scene.add(buildProps(t, this.race.props, this.ground));
@@ -119,20 +153,18 @@ export class Game {
     // Pre-build the area around the start so the first frame is complete.
     const start = this.views[0].bike.root.position;
     this.updateViews(1, 0);
-    this.terrain.update(start.x, start.z, 1100, 400);
+    this.terrain.update(start.x, start.z, this.quality.viewDistance, 400);
     this.renderer.compile(this.scene, this.chase.camera);
     this.hud.loaded();
+    const invite = location.pathname.match(/^\/r\/([a-z0-9]{5})$/i);
+    this.menu.showTitle(invite ? invite[1].toLowerCase() : null);
     requestAnimationFrame(() => this.frame());
   }
 
-  private newRace(): void {
+  private newRace(race: Race, playerId = race.riders.findIndex((r) => r.human)): void {
     for (const v of this.views) v.dispose();
-    const human = { name: "You", colour: PLAYER_COLOUR, human: true };
-    const rivals = RIVALS.map((r) => ({ ...r, human: false }));
-    // Start mid-pack.
-    const entries = [...rivals.slice(0, 6), human, ...rivals.slice(6)];
-    this.race = new Race(SEED, entries);
-    this.playerId = this.race.riders.findIndex((r) => r.human);
+    this.race = race;
+    this.playerId = playerId;
     this.views = this.race.riders.map((r) => new RiderView(r, this.scene));
     this.prev = this.race.riders.map((r) => snapRider(r, {} as RiderSnap));
     this.cur = this.race.riders.map((r) => snapRider(r, {} as RiderSnap));
@@ -149,15 +181,102 @@ export class Game {
 
   private onStart(): void {
     this.audio.start();
-    if (this.mode === "title") {
-      this.mode = "race";
-      this.hud.show("title", false);
-      this.hud.setRacing(true);
-    } else if (this.mode === "results") {
-      this.newRace();
-      this.mode = "race";
-      this.hud.show("results", false);
-      this.hud.setRacing(true);
+    if (this.mode === "title" && !this.menu.busy) this.solo();
+    else if (this.mode === "results" && !this.online) this.solo();
+    else if (this.mode === "lobby" && this.room && !this.room.public && this.room.hostId === this.myId) this.net.send({ t: "start" });
+  }
+
+  private solo(): void {
+    this.audio.start();
+    this.online = null;
+    const entries = soloEntries(this.menu.name || "You", this.menu.colour);
+    this.newRace(new Race(TRACK_SEED, entries));
+    this.enterRace();
+  }
+
+  private enterRace(): void {
+    this.mode = "race";
+    if (isTouchDevice()) {
+      this.touch.show(true);
+      this.touch.active = true;
+      goFullscreen();
+    }
+    this.acc = 0;
+    this.menu.hide();
+    this.hud.hideResults();
+    this.hud.setRacing(true);
+    this.hud.setPing(this.online ? this.net.rtt : null);
+  }
+
+  private async goOnline(msg: { t: "quick" } | { t: "create" } | { t: "join"; code: string }): Promise<void> {
+    this.audio.start();
+    this.menu.setStatus("Connecting…");
+    try {
+      await this.net.connect();
+    } catch (e) {
+      this.menu.setStatus((e as Error).message);
+      return;
+    }
+    this.net.send({ t: "hello", name: this.menu.name || "Rider", colour: this.menu.colour });
+    this.net.send(msg);
+  }
+
+  private leaveRoom(): void {
+    this.net.send({ t: "leave" });
+    this.backToTitle();
+  }
+
+  private backToTitle(error?: string): void {
+    this.online = null;
+    this.room = null;
+    this.mode = "title";
+    this.hud.setRacing(false);
+    this.hud.hideResults();
+    this.hud.setPing(null);
+    history.replaceState(null, "", "/");
+    this.menu.showTitle(null, error);
+  }
+
+  private onServer(m: ServerMsg): void {
+    switch (m.t) {
+      case "welcome":
+        this.myId = m.playerId;
+        break;
+      case "room": {
+        this.room = m.room;
+        history.replaceState(null, "", m.room.public ? "/" : `/r/${m.room.code}`);
+        if (m.room.state === "lobby") {
+          if (this.mode !== "lobby") {
+            this.mode = "lobby";
+            this.online = null;
+            this.hud.setRacing(false);
+            this.hud.hideResults();
+            this.hud.setPing(null);
+          }
+          this.menu.showLobby(m.room, this.myId);
+        } else if (m.room.state === "results" && this.online && this.mode === "race") {
+          this.mode = "results";
+          this.online.syncAll();
+          this.hud.setRacing(false);
+          this.hud.clearMessage();
+          this.hud.results(this.race, this.me, "BACK TO THE LOBBY IN A FEW SECONDS");
+        } else if (this.mode === "lobby") {
+          this.menu.showLobby(m.room, this.myId);
+        }
+        break;
+      }
+      case "start":
+        this.online = new OnlineRace(this.net, m.entries, m.seed, m.riderId);
+        this.newRace(this.online.race, m.riderId);
+        this.enterRace();
+        break;
+      case "error":
+        if (this.mode === "title") this.menu.setStatus(m.message);
+        else this.backToTitle(m.message);
+        break;
+      case "left":
+      case "pong":
+        break;
     }
   }
 
@@ -174,15 +293,20 @@ export class Game {
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     this.time += dt;
+    this.scaler.update(dt);
+    const touchRace = this.mode === "race" && isTouchDevice();
+    this.touch.show(touchRace);
+    document.body.classList.toggle("touch-race", touchRace);
 
-    if (this.mode !== "title") {
+    const simulating = this.mode === "race" || this.mode === "results";
+    if (simulating) {
       this.acc += dt;
       while (this.acc >= DT) {
         this.tick();
         this.acc -= DT;
       }
     }
-    const alpha = this.mode === "title" ? 1 : this.acc / DT;
+    const alpha = simulating ? this.acc / DT : 1;
     this.render(dt, alpha);
   }
 
@@ -196,8 +320,13 @@ export class Game {
     this.traffic.snapshot();
     const me = this.me;
     this.inputs.set(me.id, this.input.sample(DT, this.playerInput));
-    const events = race.step(this.inputs);
+    const events = this.online ? this.online.tick(this.playerInput) : race.step(this.inputs);
     race.riders.forEach((r, i) => snapRider(r, this.cur[i]));
+    if (this.online && me.mode === "riding") {
+      // Hide prediction corrections by gliding the visual position back.
+      this.cur[me.id].s += this.online.error.s;
+      this.cur[me.id].d += this.online.error.d;
+    }
     for (const e of events) this.onEvent(e);
 
     // Countdown display.
@@ -237,6 +366,7 @@ export class Game {
         for (let i = 0; i < 14; i++)
           this.dust.emit(t.x, t.y + 1.3, t.z, (Math.random() - 0.5) * 4, Math.random() * 2, (Math.random() - 0.5) * 4, new THREE.Color(0xfff2dc), 0.35, 0.4, 2);
         if (e.target === me.id) {
+          buzz(40);
           this.chase.shake(0.45);
           this.hitPulse = 1;
           this.hud.flash();
@@ -247,6 +377,7 @@ export class Game {
         const r = this.race.riders[e.rider];
         this.audio.crash(e.rider === me.id ? 1 : near(e.rider) * 0.7);
         if (e.rider === me.id) {
+          buzz([80, 40, 120]);
           this.chase.shake(0.9);
           this.hitPulse = 1;
           const by = e.by !== undefined ? this.race.riders[e.by].name.toUpperCase() : null;
@@ -265,7 +396,7 @@ export class Game {
       case "finish":
         if (e.rider === me.id) {
           this.hud.message(`FINISHED<small>${e.place}${ordinal(e.place).toUpperCase()} PLACE</small>`, 3);
-          this.resultsTimer = TICK_RATE * 3;
+          if (!this.online) this.resultsTimer = TICK_RATE * 3;
         }
         break;
       case "remount":
@@ -295,7 +426,7 @@ export class Game {
     this.sun.position.copy(focus).addScaledVector(SUN_DIR, 200);
     this.sky.follow(cam, focus.y);
     this.water.update(cam, this.time);
-    this.terrain.update(cam.position.x, cam.position.z, 1100, 2);
+    this.terrain.update(cam.position.x, cam.position.z, this.quality.viewDistance, 2);
 
     this.emitParticles(dt);
     this.sparks.update(dt);
@@ -306,7 +437,10 @@ export class Game {
     this.post.setIntensity(this.mode === "race" ? Math.min(1, me.speed / 66) : 0, this.hitPulse);
     this.post.render(dt);
 
-    if (this.mode === "race") this.hud.update(race, me, dt);
+    if (this.mode === "race") {
+      this.hud.update(race, me, dt);
+      if (this.online) this.hud.setPing(this.net.rtt);
+    }
     this.updateAudio();
   }
 
@@ -363,13 +497,28 @@ export class Game {
     }
     const c = me.crash;
     this.audio.update({
-      rpm: this.mode === "title" ? 0.15 : me.rpm,
+      rpm: this.mode === "race" ? me.rpm : 0.15,
       throttle: this.playerInput.throttle,
       speed: me.mode === "riding" ? me.speed : 0,
       riding: me.mode === "riding",
       scrape: c ? Math.min(1, Math.abs(c.bikeVs) / 20) : 0,
       rivalRpm,
-      rivalDist: this.mode === "title" ? 100 : nearest,
+      rivalDist: this.mode === "race" ? nearest : 100,
     });
   }
+}
+
+function soloEntries(name = "You", colour = 0xe8402a): RacerEntry[] {
+  const rivals = RIVALS.map((r) => ({ ...r, human: false }));
+  // Start mid-pack.
+  return [...rivals.slice(0, 6), { name, colour, human: true }, ...rivals.slice(6)];
+}
+
+/** Fullscreen + landscape lock where the browser allows it (Android Chrome); no-op elsewhere. */
+function goFullscreen(): void {
+  const el = document.documentElement;
+  if (document.fullscreenElement || !el.requestFullscreen) return;
+  el.requestFullscreen({ navigationUI: "hide" })
+    .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.("landscape"))
+    .catch(() => {});
 }

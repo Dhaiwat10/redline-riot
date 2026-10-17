@@ -77,7 +77,10 @@ export class Terrain {
   private readonly wanted = new Set<string>();
   private readonly material: THREE.MeshStandardMaterial;
 
-  constructor(readonly ground: Ground) {
+  constructor(
+    readonly ground: Ground,
+    private readonly scatterDensity = 1,
+  ) {
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95, metalness: 0 });
     // Pre-compute which chunks touch the road corridor.
     const t = ground.track;
@@ -209,7 +212,7 @@ export class Terrain {
     mesh.receiveShadow = true;
     const holder = new THREE.Group();
     holder.add(mesh);
-    const scatter = buildScatter(ground, x0, z0, CHUNK, cx * 7919 + cz * 104729);
+    const scatter = buildScatter(ground, x0, z0, CHUNK, cx * 7919 + cz * 104729, this.scatterDensity);
     if (scatter) holder.add(scatter);
     this.group.add(holder);
     this.chunks.set(this.key(cx, cz), holder);

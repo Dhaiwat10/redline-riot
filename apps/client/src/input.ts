@@ -1,4 +1,5 @@
 import { Attack, type RiderInput } from "@rr/shared";
+import type { TouchControls } from "./touch.ts";
 
 /** Keyboard + gamepad → RiderInput. Attacks are latched until the next sim tick consumes them. */
 export class Input {
@@ -7,6 +8,7 @@ export class Input {
   private pending: { attack: Attack; side: -1 | 1 } | null = null;
   private padPrev: boolean[] = [];
   onStart: (() => void) | null = null;
+  touch: TouchControls | null = null;
 
   constructor() {
     addEventListener("keydown", (e) => {
@@ -62,6 +64,16 @@ export class Input {
       if (press(4)) this.pending = { attack: Attack.Kick, side: -1 };
       if (press(5)) this.pending = { attack: Attack.Kick, side: 1 };
       if (press(9)) this.onStart?.();
+    }
+
+    const touch = this.touch;
+    if (touch?.active) {
+      // Touch play: throttle is automatic unless braking.
+      throttle = touch.brake ? 0 : Math.max(throttle, 1);
+      brake = Math.max(brake, touch.brake ? 1 : 0);
+      if (Math.abs(touch.steer) > Math.abs(steer)) steer = touch.steer;
+      const a = touch.takeAttack();
+      if (a) this.pending = a;
     }
 
     out.throttle = throttle;
