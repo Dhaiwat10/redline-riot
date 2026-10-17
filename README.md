@@ -1,8 +1,8 @@
 # Redline Riot
 
-Browser combat-motorcycle racing in the spirit of early-90s Road Rash. Twelve riders, an 8 km
+A Road Rash-inspired combat motorcycle racer for the browser. Twelve riders, an 8 km
 point-to-point road, traffic both ways, and fists. Online multiplayer, plays on desktop and phones.
-All art and sound is generated in code.
+All code, art and sound are original; nothing is taken from the original games.
 
 Play: https://redline-riot.fly.dev
 
@@ -56,3 +56,11 @@ Runs on Fly.io as a single machine (races live in memory), which sleeps when idl
 ```bash
 pnpm deploy     # fly deploy --ha=false
 ```
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
+
+---
+
+Not affiliated with or endorsed by Electronic Arts. Road Rash is a trademark of Electronic Arts Inc.

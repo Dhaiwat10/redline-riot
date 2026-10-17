@@ -198,9 +198,16 @@ export class Room {
     const now = performance.now();
     this.acc += Math.min(0.25, (now - this.lastTime) / 1000);
     this.lastTime = now;
-    while (this.acc >= DT && this.state === "racing") {
-      this.acc -= DT;
-      this.step();
+    try {
+      while (this.acc >= DT && this.state === "racing") {
+        this.acc -= DT;
+        this.step();
+      }
+    } catch (e) {
+      // A bug in one race must not take down every other room on the server.
+      console.error(`room ${this.code} crashed, ending race:`, e);
+      this.finish();
+      return;
     }
     if (this.state === "racing") this.loop = setTimeout(() => this.tickLoop(), 4);
   }

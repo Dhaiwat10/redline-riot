@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { createGzip } from "node:zlib";
 import { WebSocketServer } from "ws";
-import { decodeInput, idleInput, isInputFrame, type ClientMsg } from "@rr/shared";
+import { INPUT_FRAME_BYTES, decodeInput, idleInput, isInputFrame, type ClientMsg } from "@rr/shared";
 import { Conn } from "./conn.ts";
 import { Room, type Player } from "./room.ts";
 
@@ -50,7 +50,8 @@ export class GameServer {
         createReadStream(file).pipe(createGzip()).pipe(res);
       } else createReadStream(file).pipe(res);
     });
-    const wss = new WebSocketServer({ server: this.http, path: "/ws" });
+    // Real messages are tiny; refuse anything big before it is buffered.
+    const wss = new WebSocketServer({ server: this.http, path: "/ws", maxPayload: 4096 });
     wss.on("connection", (ws) => this.connect(new Conn(ws, opts.lagMs ?? 0, opts.jitterMs ?? 0)));
   }
 
@@ -109,19 +110,19 @@ export class GameServer {
     };
     conn.send({ t: "welcome", playerId: player.id });
 
+    // Everything a client sends is untrusted: malformed messages are dropped, never thrown.
     conn.onMessage((data, binary) => {
-      if (binary) {
-        const bytes = new Uint8Array(data as Buffer);
-        if (isInputFrame(bytes) && player.room) player.room.receiveInput(player, decodeInput(bytes));
-        return;
-      }
-      let msg: ClientMsg;
       try {
-        msg = JSON.parse(data as string);
-      } catch {
-        return;
+        if (binary) {
+          const bytes = new Uint8Array(data as Buffer);
+          if (bytes.length === INPUT_FRAME_BYTES && isInputFrame(bytes) && player.room) player.room.receiveInput(player, decodeInput(bytes));
+          return;
+        }
+        const msg = JSON.parse(data as string) as ClientMsg;
+        if (msg && typeof msg === "object" && typeof msg.t === "string") this.handle(player, msg);
+      } catch (e) {
+        console.warn(`dropped bad message from player ${player.id}:`, (e as Error).message);
       }
-      this.handle(player, msg);
     });
     conn.onClose(() => {
       player.connected = false;

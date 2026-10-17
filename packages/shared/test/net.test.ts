@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Attack, Race, RIVALS, decodeInput, decodeSnapshot, encodeInput, encodeSnapshot, riderNetState } from "../src/index.ts";
+import { Attack, INPUT_FRAME_BYTES, Race, RIVALS, decodeInput, decodeSnapshot, encodeInput, encodeSnapshot, riderNetState } from "../src/index.ts";
 
 describe("protocol", () => {
   it("round-trips input frames", () => {
@@ -10,6 +10,8 @@ describe("protocol", () => {
     expect(back.input.attack).toBe(Attack.Kick);
     expect(back.input.attackSide).toBe(-1);
     expect(back.input.steer).toBeCloseTo(-0.5, 1);
+    // The server rejects any input frame that isn't exactly this size.
+    expect(encodeInput(f).length).toBe(INPUT_FRAME_BYTES);
   });
 
   it("round-trips a mid-race snapshot within quantisation", () => {

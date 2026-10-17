@@ -13,7 +13,13 @@ export class Conn {
     private readonly ws: WebSocket,
     private readonly lagMs: number,
     private readonly jitterMs: number,
-  ) {}
+  ) {
+    // Protocol errors (oversized or broken frames) close the socket; they must not throw.
+    ws.on("error", (e) => {
+      console.warn("socket error:", e.message);
+      ws.terminate();
+    });
+  }
 
   get open() {
     return this.ws.readyState === this.ws.OPEN;

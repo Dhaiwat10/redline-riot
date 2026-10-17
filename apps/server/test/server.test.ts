@@ -20,6 +20,8 @@ class Bot {
   private waiters: (() => void)[] = [];
   constructor() {
     this.ws = new WebSocket(`ws://localhost:${port}/ws`);
+    // The hostile test expects the server to cut it off.
+    this.ws.on("error", () => {});
     this.ws.on("message", (data, binary) => {
       if (binary) {
         const b = new Uint8Array(data as Buffer);
@@ -130,6 +132,28 @@ describe("server", () => {
     expect(lobby.room.players).toHaveLength(1);
     a.ws.close();
   }, 20000);
+
+  it("survives malformed and hostile messages", async () => {
+    const evil = new Bot();
+    await evil.open();
+    evil.send({ t: "create" });
+    await evil.waitFor("room");
+    evil.send({ t: "start" });
+    await evil.waitFor("start");
+    evil.ws.send(new Uint8Array([1, 0, 0]));
+    evil.ws.send(new Uint8Array(15).fill(255));
+    for (const raw of ["null", "42", '"x"', "[]", "{", '{"t":"join","code":{"a":1}}', '{"t":"hello","name":null,"colour":"x"}']) evil.ws.send(raw);
+    evil.ws.send("x".repeat(10000));
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Server is still up and serving others.
+    const ok = new Bot();
+    await ok.open();
+    ok.send({ t: "create" });
+    expect((await ok.waitFor("room")).room.players).toHaveLength(1);
+    ok.ws.close();
+    evil.ws.close();
+  });
 
   it("rejects unknown codes", async () => {
     const c = new Bot();

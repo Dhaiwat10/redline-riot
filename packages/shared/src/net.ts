@@ -148,6 +148,9 @@ export interface InputFrame {
   input: RiderInput;
 }
 
+/** Size of an encoded input frame; anything else is rejected. */
+export const INPUT_FRAME_BYTES = 14;
+
 export function encodeInput(f: InputFrame): Uint8Array {
   const w = new Writer();
   w.u8(Kind.Input);
