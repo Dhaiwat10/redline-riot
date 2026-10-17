@@ -1,0 +1,22 @@
+{
+  "name": "@rr/client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p . && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p .",
+    "test": "echo 'no client tests yet'"
+  },
+  "dependencies": {
+    "@rr/shared": "workspace:*",
+    "postprocessing": "^6.37.6",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.0"
+  }
+}

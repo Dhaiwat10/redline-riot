@@ -1,0 +1,12 @@
+{
+  "name": "redline-riot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @rr/client dev",
+    "build": "pnpm --filter @rr/client build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "packageManager": "pnpm@10.0.0"
+}
