@@ -1,11 +1,11 @@
 import * as THREE from "three";
 import { fbm2 } from "@rr/shared";
 
-export const SUN_DIR = new THREE.Vector3(-0.55, 0.32, 0.77).normalize();
-export const HORIZON = new THREE.Color(0xf3d2a8);
-const ZENITH = new THREE.Color(0x2f6fc4);
-const MID = new THREE.Color(0x9cc4e8);
-const SUN = new THREE.Color(0xffe2b0);
+export const SUN_DIR = new THREE.Vector3(-0.42, 0.78, 0.46).normalize();
+export const HORIZON = new THREE.Color(0xd9e6ef);
+const ZENITH = new THREE.Color(0x2c6bd0);
+const MID = new THREE.Color(0x8fbbe8);
+const SUN = new THREE.Color(0xfff6e6);
 
 /** Gradient sky dome with a soft sun, plus a ring of distant hazy mountains. */
 export class Sky {
@@ -41,7 +41,7 @@ export class Sky {
           // Below the horizon fade to haze.
           col = mix(col, horizon * 0.92, smoothstep(0.0, -0.15, d.y));
           float sd = max(dot(d, sunDir), 0.0);
-          col += sunColor * (pow(sd, 6.0) * 0.35 + pow(sd, 60.0) * 0.8);
+          col += sunColor * (pow(sd, 12.0) * 0.18 + pow(sd, 120.0) * 0.6);
           col += sunColor * smoothstep(0.9993, 0.9997, sd) * 6.0;
           gl_FragColor = vec4(col, 1.0);
           #include <colorspace_fragment>

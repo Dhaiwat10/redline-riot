@@ -89,7 +89,7 @@ export class Game {
     this.scene.fog = new THREE.Fog(HORIZON, 220 * (this.quality.viewDistance / 1100), this.quality.viewDistance);
     this.scene.background = HORIZON.clone();
 
-    this.sun = new THREE.DirectionalLight(0xffe4c0, 3.6);
+    this.sun = new THREE.DirectionalLight(0xfff4e4, 3.3);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(this.quality.shadowSize, this.quality.shadowSize);
     const sc = this.sun.shadow.camera;
@@ -102,7 +102,7 @@ export class Game {
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.05;
     this.scene.add(this.sun, this.sun.target);
-    this.scene.add(new THREE.HemisphereLight(0xa9c8f0, 0x5d4a30, 1.0));
+    this.scene.add(new THREE.HemisphereLight(0xbfd8f5, 0x5f5a48, 1.35));
     this.scene.add(this.sky.group, this.sparks.points, this.dust.points, this.speedLines.lines);
 
     this.post = new Post(this.renderer, this.scene, this.chase.camera, this.quality);

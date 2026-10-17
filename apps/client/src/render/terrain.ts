@@ -58,11 +58,11 @@ export interface GroundInfo {
 
 const C = (hex: number) => new THREE.Color(hex);
 const PAL = {
-  grassCoast: C(0x9aa654),
-  grassDry: C(0xc2a85a),
+  grassCoast: C(0x7fa64e),
+  grassDry: C(0xa9a660),
   grassForest: C(0x4f7a35),
   forestFloor: C(0x5b4a2e),
-  grassAlpine: C(0x6f8a48),
+  grassAlpine: C(0x5f8a46),
   rock: C(0x8a8378),
   rockDark: C(0x5f5a52),
   sand: C(0xe0cf9f),
