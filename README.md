@@ -28,7 +28,7 @@ and open the "Network" URL Vite prints, on the same Wi-Fi.
 
 ## Deploy
 
-Live at https://redline-riot.fly.dev (Fly.io, London). Races live in server memory, so it runs on
+Live at https://redline-riot.fly.dev (Fly.io, Singapore). Races live in server memory, so it runs on
 a single machine that sleeps when idle and wakes on the next visit.
 
 ```bash

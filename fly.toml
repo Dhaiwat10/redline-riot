@@ -1,8 +1,9 @@
 # Fly.io config. Races live in the server's memory, so this must stay a single machine:
 # deploy with `fly deploy --ha=false`.
 app = "redline-riot"
-primary_region = "lhr"
+primary_region = "sin"
 
+# Singapore: closest Fly region to players in India.
 [build]
 
 [env]
